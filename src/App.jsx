@@ -4,16 +4,16 @@ import Header from './components/Header'
 import FileDisplay from './components/FileDisplay'
 import Information from './components/Information'
 import Transcribing from './components/Transcribing'
-import { MessageTypes } from './utils/preset'
+import { MessageTypes } from './utils/presets'
 
 function App() {
   const [file, setFile] = useState(null)
   const [audioStream, setAudioStream] = useState(null)
   const [outPut, setOutput] = useState(null)
+  const [downloading, setDownloading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [finished, setFinished] = useState(false)
-  const [downloading, setDownloading] = useState(false)
-
+  
   const isAudioAvailble = file  || audioStream
 
   function handleAudioReset() {
@@ -25,7 +25,7 @@ function App() {
 
   useEffect(() => {
     if (!worker.current) {
-      worker.current = new Worker(new URL('./utils/whiper.worker.js', import.meta.url), {
+      worker.current = new Worker(new URL('./utils/whisper.worker.js', import.meta.url), {
         type: 'module'
       })
     }
@@ -42,6 +42,7 @@ function App() {
           break;
         case 'RESULT':
           setOutput(e.data.results)
+          console.log(e.data.results)
           break;
         case 'INFERENCE_DONE':
           setFinished(true)
@@ -53,11 +54,11 @@ function App() {
     worker.current.addEventListener('message', onMesssageReceived)
 
     return () => worker.current.removeEventListener('message', onMesssageReceived)
-  }, [])
+  })
 
   async function readAudioFrom(file) {
     const sampling_rate = 16000
-    const audioCTX = new AudioContext({sampleRate:sampling_rate})
+    const audioCTX = new AudioContext({ sampleRate: sampling_rate })
     const response = await file.arrayBuffer()
     const decoded = await audioCTX.decodeAudioData(response)
     const audio = decoded.getChannelData(0)
@@ -68,7 +69,7 @@ function App() {
     if (!file && !audioStream) { return }
 
     let audio = await readAudioFrom(file ? file : audioStream)
-    const model_name = 'openai/whisper-tiny.en'
+    const model_name = `openai/whisper-tiny.en`
 
     worker.current.postMessage({
       type: MessageTypes.INFERENCE_REQUEST,
@@ -87,13 +88,12 @@ function App() {
           ) : loading ? (
             <Transcribing />
           ) : isAudioAvailble ? (
-            <FileDisplay handleFormSubmission={handleFormSubmission}
-            handleAudioReset={handleAudioReset} file={file} audioStream={audioStream}/>
-          ) : (<HomePage setFile={setFile} setAudioStream=
-            {setAudioStream} />
+            <FileDisplay handleFormSubmission={handleFormSubmission} handleAudioReset={handleAudioReset} 
+            file={file} audioStream={audioStream}/>
+          ) : (
+          <HomePage setFile={setFile} setAudioStream={setAudioStream} />
           )}
         </section>
-        <h1 className='text-green-400'>Counter</h1>
         <footer></footer>
       </div>
     </>
