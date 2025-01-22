@@ -1,4 +1,4 @@
-import {pipeline} from "@xenova/transformers"
+import { pipeline } from "@xenova/transformers"
 import { MessageTypes } from "./preset"
 import { send } from "vite"
 
@@ -22,4 +22,154 @@ self.addEventListener('message', async (e) => {
         await transcribe(audio)
     }
 })
+
+async function transcribe(audio) {
+    sendLoadingMessage('Loading')
+
+    let pipeline
+
+    try {
+        pipeline = await MyTranscriptionPipeline.getInstance
+        (load_model_callback)
+    } catch (err) {
+        console.log(err.message)
+    }
+
+    sendLoadingMessage('success')
+
+    const stride_length_s = 5
+
+    const generationTracker = new generationTracker(pipeline, stride_length_s)
+    await pipeline(audio, {
+        top_k: 0,
+        do_sample: false,
+        chunk_length: 30,
+        stride_length_s,
+        return_timestamps: true,
+        callback_function: generationTracker.callbackFunction.bind
+        (generationTracker),
+        chunk_callback: generationTracker.chunkCallback.bind
+        (generationTracker)
+    })
+    generationTracker.sendFinalResult()
+}
+
+async function load_model_callback(data) {
+    const {status} = data
+    if (status === 'progress') {
+        const {file, progress, loaded, total} = data
+        sendDownloadingMessage(file, progress, loaded, total)
+    }
+}
+
+function sendLoadingMessage(status) {
+    self.postMessage(
+        {type: MessageTypes.LOADING, 
+        status
+    })
+}
+
+async function sendDownloadingMessage(file, progress, loaded, total) {
+    self.postMessage({
+        type: MessageTypes.DOWNLOADING,
+        file,
+        progress,
+        loaded,
+        total
+    })
+}
+
+class GenerationTracker {
+    constructor(pipeline, stride_length_s) {
+        this.pipeline = pipeline
+        this.stride_length_s = stride_length_s
+        this.chunks = []
+        this.time_precision = pipeline?.processor.feature_extractor.config.chunk_length / 
+        pipeline.model.config.max_source_positions
+        this.processed_chunks = []
+        this.callbackFunctionCounter = 0
+    }
+
+    sendFinalResult() {
+        self.postMessage({
+            type: MessageTypes.INFERENCE_DONE,
+        })
+    }
+
+    callbackFunction(beams) {
+        this.callbackFunctionCounter += 1
+        if (this.callbackFunctionCounter %10 != 0) {
+            return
+        }
+
+        const bestBeam = beams[0]
+        let text = this.pipeline.tokenizer.decode(bestBeam.
+            output_tokens_ids, {
+                skip_special_tokens: true
+            })
+        
+            const result = {
+                text,
+                start: this.getLastChunkTimestamp(),
+                end: undefined
+            }
+
+            createPartialResultMessage(result)
+    }
+
+    chunkCallback(data) {
+        this.chunks.push(data)
+        const [text, {chunks}] = this.pipeline.tokenizer._decode_asr(
+            this.chunks,
+            {
+                time_precision: this.time_precision,
+                return_timestamps: true,
+                force_full_sequence: false
+            }
+        )
+
+        this.processed_chunks = chunks.map((chunks, index) => {
+            return this.processed_chunks(chunks, index)
+        })
+
+        createResultMessage(
+            this.processed_chunks, false, this.getLastChunkTimestamp()
+        )
+
+        getLastChunkTimestamp() {
+            if (this.chunks.length === 0) {
+                return 0
+            }
+        }
+    }
+
+    processed_chunks(chunks, index) {
+        const { text, timestamp } = chunk
+        const [start, end] = timestamp
+
+        return {
+            index,
+            text:`${text.trim}`,
+            start: Math.round(start),
+            end: Math.round(end) || Math.round(start + 0.9 * this.stride_length_s)
+        }
+    }
+}
+
+function createResultMessage(results, isDone, completeUntilTimestamp) {
+    self.postMessage({
+        type: MessageTypes.RESULT,
+        results,
+        isDone,
+        completeUntilTimestamp
+    })
+}
+
+function createPartialResultMessage(result) {
+    self.postMessage({
+        type: MessageTypes.RESULT_PARTIAL,
+        result
+    })
+}
+
 
