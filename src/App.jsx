@@ -9,7 +9,7 @@ import { MessageTypes } from './utils/presets'
 function App() {
   const [file, setFile] = useState(null)
   const [audioStream, setAudioStream] = useState(null)
-  const [outPut, setOutput] = useState(null)
+  const [output, setOutput] = useState(null)
   const [downloading, setDownloading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [finished, setFinished] = useState(false)
@@ -83,8 +83,8 @@ function App() {
       <div className='flex flex-col max-w-[1000px] mx-auto w-full'>
         <section className='min-h-screen flex flex-col'>
           <Header />
-          {outPut ? (
-            <Information />
+          {output ? (
+            <Information output={output} />
           ) : loading ? (
             <Transcribing />
           ) : isAudioAvailble ? (

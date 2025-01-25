@@ -1,8 +1,10 @@
-import React, {useState} from 'react'
+import React, { useState } from 'react'
 import Transcription from './Transcription'
 import Translation from './Translation'
 
-export default function Information() {
+export default function Information(props) {
+    const { output } = props
+    console.log(output)
     const [tab, setTab] = useState('transcription')
 
   return (
@@ -14,18 +16,28 @@ export default function Information() {
                 setTab('transcription')
             }} className={'px-4 duration-200 py-1 font-medium ' + 
                 (tab === 'transcription' ? 
-                ' bg-blue-400 text-white' : ' text-blue-400 hover:text-blue-600')}>Transcription</button>
+                ' bg-blue-300 text-white' : ' text-blue-400 hover:text-blue-600')}>Transcription</button>
             <button onClick={() => {
                 setTab('translation')
             }} className={'px-4 duration-200 py-1 font-medium ' + 
                 (tab === 'translation' ? 
-                ' bg-blue-400 text-white' : ' text-blue-400 hover:text-blue-600')}>Translation</button>
+                ' bg-blue-300 text-white' : ' text-blue-400 hover:text-blue-600')}>Translation</button>
         </div>
+        <div className='my-8 flex flex-col'>
         {tab === 'transcription' ? ( 
-            <Transcription />
+            <Transcription {...props} />
         ) : (
-            <Translation />
+            <Translation {...props} />
         )}
+        </div>
+        <div className='flex items-center gap-4 mx-auto text-base'>
+            <button className='specialBtn p-2 rounded-md px-4'>
+                <i className="fa-regular fa-copy"></i>
+            </button>
+            <button className='specialBtn p-2 rounded-md px-4'>
+                <i className="fa-solid fa-file-arrow-down"></i>
+            </button>
+        </div>
     </main>
   )
 }
