@@ -33,10 +33,6 @@ h1, h2, h3, .bold {
   animation-delay: -2s;
 }
 
-i {
-  color: rgb(82, 177, 241);
-}
-
 @keyframes width {
   0% {
     width: 100%;
