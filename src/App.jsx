@@ -30,7 +30,7 @@ function App() {
       })
     }
 
-    const onMesssageReceived = async (e) => {
+    const onMessageReceived = async (e) => {
       switch (e.data.type) {
         case 'DOWNLOADING':
           setDownloading(true)
@@ -51,9 +51,9 @@ function App() {
       }
     }
 
-    worker.current.addEventListener('message', onMesssageReceived)
+    worker.current.addEventListener('message', onMessageReceived)
 
-    return () => worker.current.removeEventListener('message', onMesssageReceived)
+    return () => worker.current.removeEventListener('message', onMessageReceived)
   })
 
   async function readAudioFrom(file) {
@@ -84,7 +84,7 @@ function App() {
         <section className='min-h-screen flex flex-col'>
           <Header />
           {output ? (
-            <Information output={output} />
+            <Information output={output} finished={finished} />
           ) : loading ? (
             <Transcribing />
           ) : isAudioAvailble ? (

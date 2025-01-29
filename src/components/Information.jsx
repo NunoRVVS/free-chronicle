@@ -8,36 +8,71 @@ export default function Information(props) {
     const [translation, setTranslation] = useState(null)
     const [toLanguage, setToLanguage] = useState('Select language')
     const [translating, setTranslating] = useState(null)
+    
+    //this to define worker
+    const worker = useRef()
+
+    useEffect(() => {
+        if (!worker.current) {
+          worker.current = new Worker(new URL('../utils/translate.worker.js', import.meta.url), {
+            type: 'module'
+          })
+        }
+
+        const onMessageReceived = async (e) => {
+            switch (e.data.type) {
+                case 'initiate':
+                    console.log('DOWNLOADING')
+                    break;
+                case 'progress':
+                    console.log('LOADING')
+                    break;
+                case 'update':
+                    setTranslation(e.data.output)
+                    console.log(e.data.output)
+                    break;
+                case 'complete':
+                    setTranslating(false)
+                    console.log('DONE')
+                    break;
+            }
+        }
+
+        worker.current.addEventListener('message', onMessageReceived)
+
+        return () => {
+            worker.current.removeEventListener('message', onMessageReceived)
+        }
+    })
+
+    const textElement = tab === 'transcription' ? output.map(val => val.text) : translation || ''
 
     function handleCopy() {
-        navigator.clipboard.writeText(output)
+        navigator.clipboard.writeText(textElement.toString())
     }
 
     function handleDownload() {
         const element = document.createElement('a')
-        const file = new Blob([output], { type: 'text/plain' })
+        const file = new Blob([textElement], { type: 'text/plain' })
         element.href = URL.createObjectURL(file)
-        element.download(`Freechronicle_${(new Date()).toDateString()}.txt`)
+        element.download = `FreeChronicle_${new Date().toString()}.txt`
         document.body.appendChild(element)
         element.click()
     }
     
     function generateTranslation() {
-        if (translating || toLanguage === 'Select language') {
+        if (translating || toLanguage === 'Select language' || !worker.current) {
             return
         }
 
         setTranslating(true)
 
-        Worker.current.postMessage({
-            text: output.map(val => val.text),
+        worker.current.postMessage({
+            text: output.map(val => val.text).join("\n"),
             src_lang: 'eng_Latn',
-            tgt_lang: toLanguage
+            tgt_lang: toLanguage,
         })
     }
-
-    const textElement = tab === 'transcription' ? output.map(val => val.text) : ''
-
 
   return (
     <main className='flex-1 p-4 flex flex-col gap-3 text-center sm:gap-4 justify-center pb-20 max-w-prose w-full mx-auto'>
@@ -55,7 +90,8 @@ export default function Information(props) {
                 (tab === 'translation' ? 
                 ' bg-blue-300 text-white' : ' text-blue-400 hover:text-blue-600')}>Translation</button>
         </div>
-        <div className='my-8 flex flex-col'>
+
+        <div className='my-8 flex flex-col-reverse max-w-prose w-full mx-auto gap-4'>
         {tab === 'transcription' ? ( 
             <Transcription {...props} textElement={textElement} />
         ) : (
@@ -66,13 +102,14 @@ export default function Information(props) {
         )}
         </div>
         <div className='flex items-center gap-4 mx-auto text-base'>
-            <button title='Copy' className='bg-yellow-50 hover:text-blue-600 duration-200 text-blue-400 px-2 aspect-square grid place-items-center rounded-md px-4'>
+            <button onClick={handleCopy} title='Copy' className='bg-yellow-50 hover:text-blue-600 duration-200 text-blue-400 px-2 aspect-square grid place-items-center rounded-md px-4'>
                 <i className="fa-regular fa-copy"></i>
             </button>
-            <button title='Download' className='bg-yellow-50 hover:text-blue-600 duration-200 text-blue-400 px-2 aspect-square grid place-items-center rounded-md px-4'>
+            <button onClick={handleDownload} title='Download' className='bg-yellow-50 hover:text-blue-600 duration-200 text-blue-400 px-2 aspect-square grid place-items-center rounded-md px-4'>
                 <i className="fa-solid fa-file-arrow-down"></i>
             </button>
         </div>
     </main>
   )
 }
+
